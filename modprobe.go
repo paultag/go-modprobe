@@ -35,7 +35,7 @@ import (
 //
 // Any arguments to the module may be passed through `params`, such as
 // `file=/root/data/backing_file`.
-func Init(file *os.File, params string) error {
+func Load(file *os.File, params string) error {
 	_p0, err := unix.BytePtrFromString(params)
 	if err != nil {
 		return err
