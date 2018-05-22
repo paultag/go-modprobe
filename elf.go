@@ -10,6 +10,9 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// Open every single kernel module under the kernel module directory
+// (/lib/modules/$(uname -r)/), and parse the ELF headers to extract the
+// module name.
 func Map() (map[string]string, error) {
 	uname := unix.Utsname{}
 	if err := unix.Uname(&uname); err != nil {
@@ -23,6 +26,8 @@ func Map() (map[string]string, error) {
 	return elfMap(filepath.Join("/lib/modules", string(uname.Release[:i])))
 }
 
+// Open every single kernel module under the root, and parse the ELF headers to
+// extract the module name.
 func elfMap(root string) (map[string]string, error) {
 	ret := map[string]string{}
 
@@ -54,6 +59,8 @@ func elfMap(root string) (map[string]string, error) {
 	return ret, nil
 }
 
+// Given a file descriptor, go ahead and parse out the module name from the
+// Symbols.
 func Name(file *os.File) (string, error) {
 	f, err := elf.NewFile(file)
 	if err != nil {
