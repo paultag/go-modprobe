@@ -1,6 +1,7 @@
 package modprobe
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +26,25 @@ func modulePath(path string) (string, error) {
 		string(uname.Release[:i]),
 		path,
 	), nil
+}
+
+func resolveName(name string) (string, error) {
+	paths, err := generateMap()
+	if err != nil {
+		return "", err
+	}
+	root, err := modulePath("")
+	if err != nil {
+		return "", err
+	}
+
+	fsPath := paths[name]
+	if !strings.HasPrefix(fsPath, root) {
+		return "", fmt.Errorf("Module isn't in the module directory")
+	}
+
+	relPath := fsPath[len(root)+1:]
+	return relPath, nil
 }
 
 // Open every single kernel module under the kernel module directory

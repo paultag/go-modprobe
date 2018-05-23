@@ -27,7 +27,12 @@ import (
 )
 
 func Load(module string) error {
-	order, err := loadOrder(module)
+	path, err := resolveName(module)
+	if err != nil {
+		return err
+	}
+
+	order, err := loadOrder(path)
 	if err != nil {
 		return err
 	}
