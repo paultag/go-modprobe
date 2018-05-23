@@ -26,6 +26,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// Given a short module name (such as `g_ether`), determine where the kernel
+// module is located, determine any dependencies, and load all required modules.
 func Load(module string) error {
 	path, err := resolveName(module)
 	if err != nil {
