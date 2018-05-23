@@ -10,20 +10,32 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Open every single kernel module under the kernel module directory
-// (/lib/modules/$(uname -r)/), and parse the ELF headers to extract the
-// module name.
-func Map() (map[string]string, error) {
+func modulePath(path string) (string, error) {
 	uname := unix.Utsname{}
 	if err := unix.Uname(&uname); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	i := 0
 	for ; uname.Release[i] != 0; i++ {
 	}
 
-	return elfMap(filepath.Join("/lib/modules", string(uname.Release[:i])))
+	return filepath.Join(
+		"/lib/modules",
+		string(uname.Release[:i]),
+		path,
+	), nil
+}
+
+// Open every single kernel module under the kernel module directory
+// (/lib/modules/$(uname -r)/), and parse the ELF headers to extract the
+// module name.
+func Map() (map[string]string, error) {
+	mPath, err := modulePath("")
+	if err != nil {
+		return nil, err
+	}
+	return elfMap(mPath)
 }
 
 // Open every single kernel module under the root, and parse the ELF headers to
