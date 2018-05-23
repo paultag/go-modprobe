@@ -12,9 +12,13 @@ import (
 )
 
 var (
+	// get the root directory for the kernel modules. If this line panics,
+	// it's because getModuleRoot has failed to get the uname of the running
+	// kernel (likely a non-POSIX system, but maybe a broken kernel?)
 	moduleRoot = getModuleRoot()
 )
 
+// Get the module root (/lib/modules/$(uname -r)/)
 func getModuleRoot() string {
 	uname := unix.Utsname{}
 	if err := unix.Uname(&uname); err != nil {
@@ -31,10 +35,12 @@ func getModuleRoot() string {
 	)
 }
 
+// Get a path relitive to the module root directory.
 func modulePath(path string) string {
 	return filepath.Join(moduleRoot, path)
 }
 
+// Get the relitive path to the module that provides the given name.
 func resolveName(name string) (string, error) {
 	paths, err := generateMap()
 	if err != nil {
@@ -90,8 +96,9 @@ func elfMap(root string) (map[string]string, error) {
 	return ret, nil
 }
 
-// Given a file descriptor, go ahead and parse out the module name from the
-// Symbols.
+// Given a file descriptor to a Kernel Module (.ko file), parse the binary
+// to get the module name. For instance, given a handle to the file at
+// `kernel/drivers/usb/gadget/legacy/g_ether.ko`, return `g_ether`.
 func Name(file *os.File) (string, error) {
 	f, err := elf.NewFile(file)
 	if err != nil {
@@ -119,6 +126,5 @@ func Name(file *os.File) (string, error) {
 		}
 	}
 
-	return "", nil
-	// .gnu.linkonce.this_module
+	return "", fmt.Errorf("No name found. Is this a .ko or just an ELF?")
 }

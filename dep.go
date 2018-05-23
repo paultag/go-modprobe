@@ -62,7 +62,7 @@ func (d dependencies) load(name string, network *topsort.Network) error {
 	return nil
 }
 
-//
+// get a dependency map from the running kernel's modules.dep file
 func loadDependencies() (dependencies, error) {
 	path := modulePath("modules.dep")
 
