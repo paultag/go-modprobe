@@ -30,7 +30,7 @@ func modulePath(path string) (string, error) {
 // Open every single kernel module under the kernel module directory
 // (/lib/modules/$(uname -r)/), and parse the ELF headers to extract the
 // module name.
-func Map() (map[string]string, error) {
+func generateMap() (map[string]string, error) {
 	mPath, err := modulePath("")
 	if err != nil {
 		return nil, err
