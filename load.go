@@ -1,7 +1,6 @@
 package modprobe
 
 import (
-	"fmt"
 	"os"
 
 	"golang.org/x/sys/unix"
@@ -19,8 +18,6 @@ func Load(module string) error {
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("%s\n", order)
 
 	for _, module := range order {
 		fd, err := os.Open(module)
