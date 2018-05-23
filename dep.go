@@ -81,7 +81,12 @@ func loadDependencies() (dependencies, error) {
 		if len(depString) == 0 {
 			continue
 		}
-		deps[chunks[0]] = strings.Split(depString, " ")
+
+		ret := []string{}
+		for _, dep := range strings.Split(depString, " ") {
+			ret = append(ret, modulePath(dep))
+		}
+		deps[chunks[0]] = ret
 	}
 
 	if err := scanner.Err(); err != nil {

@@ -52,8 +52,7 @@ func resolveName(name string) (string, error) {
 		return "", fmt.Errorf("Module isn't in the module directory")
 	}
 
-	relPath := fsPath[len(moduleRoot)+1:]
-	return relPath, nil
+	return fsPath, nil
 }
 
 // Open every single kernel module under the kernel module directory
