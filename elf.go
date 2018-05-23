@@ -40,8 +40,9 @@ func modulePath(path string) string {
 	return filepath.Join(moduleRoot, path)
 }
 
-// Get the relitive path to the module that provides the given name.
-func resolveName(name string) (string, error) {
+// For a given module name (such as `g_ether`), return an absolute path to
+// the .ko that provides that module.
+func ResolveName(name string) (string, error) {
 	paths, err := generateMap()
 	if err != nil {
 		return "", err

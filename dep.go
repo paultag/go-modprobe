@@ -8,14 +8,14 @@ import (
 	"pault.ag/go/topsort"
 )
 
-// load the dependencies, and dump out the topological sort of the
-// modules to use.
-func loadOrder(name string) ([]string, error) {
+// Given a path to a .ko file, determine what modules will have to be present
+// before loading that module.
+func Dependencies(path string) ([]string, error) {
 	deps, err := loadDependencies()
 	if err != nil {
 		return nil, err
 	}
-	return deps.Load(name)
+	return deps.Load(path)
 }
 
 // simple container type that stores a mapping from an element to elements
@@ -86,7 +86,7 @@ func loadDependencies() (dependencies, error) {
 		for _, dep := range strings.Split(depString, " ") {
 			ret = append(ret, modulePath(dep))
 		}
-		deps[chunks[0]] = ret
+		deps[modulePath(chunks[0])] = ret
 	}
 
 	if err := scanner.Err(); err != nil {
