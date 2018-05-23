@@ -64,10 +64,7 @@ func (d dependencies) load(name string, network *topsort.Network) error {
 
 //
 func loadDependencies() (dependencies, error) {
-	path, err := modulePath("modules.dep")
-	if err != nil {
-		return nil, err
-	}
+	path := modulePath("modules.dep")
 
 	file, err := os.Open(path)
 	if err != nil {

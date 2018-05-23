@@ -11,10 +11,14 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func modulePath(path string) (string, error) {
+var (
+	moduleRoot = getModuleRoot()
+)
+
+func getModuleRoot() string {
 	uname := unix.Utsname{}
 	if err := unix.Uname(&uname); err != nil {
-		return "", err
+		panic(err)
 	}
 
 	i := 0
@@ -24,8 +28,11 @@ func modulePath(path string) (string, error) {
 	return filepath.Join(
 		"/lib/modules",
 		string(uname.Release[:i]),
-		path,
-	), nil
+	)
+}
+
+func modulePath(path string) string {
+	return filepath.Join(moduleRoot, path)
 }
 
 func resolveName(name string) (string, error) {
@@ -33,17 +40,13 @@ func resolveName(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	root, err := modulePath("")
-	if err != nil {
-		return "", err
-	}
 
 	fsPath := paths[name]
-	if !strings.HasPrefix(fsPath, root) {
+	if !strings.HasPrefix(fsPath, moduleRoot) {
 		return "", fmt.Errorf("Module isn't in the module directory")
 	}
 
-	relPath := fsPath[len(root)+1:]
+	relPath := fsPath[len(moduleRoot)+1:]
 	return relPath, nil
 }
 
@@ -51,11 +54,7 @@ func resolveName(name string) (string, error) {
 // (/lib/modules/$(uname -r)/), and parse the ELF headers to extract the
 // module name.
 func generateMap() (map[string]string, error) {
-	mPath, err := modulePath("")
-	if err != nil {
-		return nil, err
-	}
-	return elfMap(mPath)
+	return elfMap(moduleRoot)
 }
 
 // Open every single kernel module under the root, and parse the ELF headers to

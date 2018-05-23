@@ -38,10 +38,7 @@ func Load(module string) error {
 	}
 
 	for _, module := range order {
-		path, err := modulePath(module)
-		if err != nil {
-			return err
-		}
+		path := modulePath(module)
 		fd, err := os.Open(path)
 		if err != nil {
 			return err
