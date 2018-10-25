@@ -2,7 +2,6 @@ package modprobe
 
 import (
 	"os"
-	"unsafe"
 
 	"golang.org/x/sys/unix"
 )
@@ -16,27 +15,11 @@ import (
 // Any arguments to the module may be passed through `params`, such as
 // `file=/root/data/backing_file`.
 func Init(file *os.File, params string) error {
-	_p0, err := unix.BytePtrFromString(params)
-	if err != nil {
-		return err
-	}
-
-	if _, _, err := unix.Syscall(unix.SYS_FINIT_MODULE, file.Fd(), uintptr(unsafe.Pointer(_p0)), 0); err != 0 {
-		return err
-	}
-	return nil
+	return unix.FinitModule(int(file.Fd()), params, 0)
 }
 
 // Unload a loaded kernel module. If no such module is loaded, or if the module
 // can not be unloaded, this function will return an error.
 func Remove(name string) error {
-	moduleName, err := unix.BytePtrFromString(name)
-	if err != nil {
-		return err
-	}
-
-	if _, _, err := unix.Syscall(unix.SYS_DELETE_MODULE, uintptr(unsafe.Pointer(moduleName)), 0, 0); err != 0 {
-		return err
-	}
-	return nil
+	return unix.DeleteModule(name, 0)
 }
