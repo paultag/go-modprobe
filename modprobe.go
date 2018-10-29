@@ -18,6 +18,18 @@ func Init(file *os.File, params string) error {
 	return unix.FinitModule(int(file.Fd()), params, 0)
 }
 
+// Like Init, but allow to specify flags to the syscall. The `flags` parameter
+// is a bit mask value created by ORing together zero or more of the following
+// flags:
+//
+//   MODULE_INIT_IGNORE_MODVERSIONS - Ignore symbol version hashes
+//   MODULE_INIT_IGNORE_VERMAGIC - Ignore kernel version magic.
+//
+// Both flags are defined in the golang.org/x/sys/unix package.
+func InitWithFlags(file *os.File, params string, flags int) error {
+	return unix.FinitModule(int(file.Fd()), params, flags)
+}
+
 // Unload a loaded kernel module. If no such module is loaded, or if the module
 // can not be unloaded, this function will return an error.
 func Remove(name string) error {
