@@ -8,8 +8,9 @@ import (
 	"pault.ag/go/topsort"
 )
 
-// Given a path to a .ko file, determine what modules will have to be present
-// before loading that module.
+// Dependencies takes a path to a .ko file, determine what modules will have to
+// be present before loading that module, and return those modules as a slice
+// of strings.
 func Dependencies(path string) ([]string, error) {
 	deps, err := loadDependencies()
 	if err != nil {

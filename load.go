@@ -6,8 +6,9 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Given a short module name (such as `g_ether`), determine where the kernel
-// module is located, determine any dependencies, and load all required modules.
+// Load will, given a short module name (such as `g_ether`), determine where
+// the kernel module is located, determine any dependencies, and load all
+// required modules.
 func Load(module, params string) error {
 	path, err := ResolveName(module)
 	if err != nil {

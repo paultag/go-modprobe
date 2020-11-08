@@ -40,8 +40,8 @@ func modulePath(path string) string {
 	return filepath.Join(moduleRoot, path)
 }
 
-// For a given module name (such as `g_ether`), return an absolute path to
-// the .ko that provides that module.
+// ResolveName will, given a module name (such as `g_ether`) return an absolute
+// path to the .ko that provides that module.
 func ResolveName(name string) (string, error) {
 	paths, err := generateMap()
 	if err != nil {
@@ -96,8 +96,8 @@ func elfMap(root string) (map[string]string, error) {
 	return ret, nil
 }
 
-// Given a file descriptor to a Kernel Module (.ko file), parse the binary
-// to get the module name. For instance, given a handle to the file at
+// Name will, given a file descriptor to a Kernel Module (.ko file), parse the
+// binary to get the module name. For instance, given a handle to the file at
 // `kernel/drivers/usb/gadget/legacy/g_ether.ko`, return `g_ether`.
 func Name(file *os.File) (string, error) {
 	f, err := elf.NewFile(file)
