@@ -118,6 +118,10 @@ func Name(file *os.File) (string, error) {
 				return "", err
 			}
 
+			if len(data) < 25 {
+				return "", fmt.Errorf("modprobe: data is short, __this_module is '%s'", data)
+			}
+
 			data = data[24:]
 			i := 0
 			for ; data[i] != 0x00; i++ {
