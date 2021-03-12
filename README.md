@@ -1,5 +1,8 @@
 # go-modprobe
 
+[![Go Reference](https://pkg.go.dev/badge/pault.ag/go/modprobe.svg)](https://pkg.go.dev/pault.ag/go/modprobe)
+[![Go Report Card](https://goreportcard.com/badge/pault.ag/go/modprobe)](https://goreportcard.com/report/pault.ag/go/modprobe)
+
 Load an unload Linux kernel modules using the Linux module syscalls.
 
 This package is Linux specific. Loading a module uses the `finit` variant,
