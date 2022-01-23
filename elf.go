@@ -1,6 +1,8 @@
 package modprobe
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -96,39 +98,45 @@ func elfMap(root string) (map[string]string, error) {
 	return ret, nil
 }
 
+func ModInfo(file *os.File) (map[string]string, error) {
+	f, err := elf.NewFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	attrs := map[string]string{}
+
+	sec := f.Section(".modinfo")
+	if sec == nil {
+		return nil, errors.New("missing modinfo section")
+	}
+
+	data, err := sec.Data()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get section data: %w", err)
+	}
+
+	for _, info := range bytes.Split(data, []byte{0}) {
+		if parts := strings.SplitN(string(info), "=", 2); len(parts) == 2 {
+			attrs[parts[0]] = parts[1]
+		}
+	}
+
+	return attrs, nil
+}
+
 // Name will, given a file descriptor to a Kernel Module (.ko file), parse the
 // binary to get the module name. For instance, given a handle to the file at
 // `kernel/drivers/usb/gadget/legacy/g_ether.ko`, return `g_ether`.
 func Name(file *os.File) (string, error) {
-	f, err := elf.NewFile(file)
+	mi, err := ModInfo(file)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get module information: %w", err)
 	}
 
-	syms, err := f.Symbols()
-	if err != nil {
-		return "", err
+	if name, ok := mi["name"]; !ok {
+		return "", errors.New("module information is missing name")
+	} else {
+		return name, nil
 	}
-
-	for _, sym := range syms {
-		if strings.Compare(sym.Name, "__this_module") == 0 {
-			section := f.Sections[sym.Section]
-			data, err := section.Data()
-			if err != nil {
-				return "", err
-			}
-
-			if len(data) < 25 {
-				return "", fmt.Errorf("modprobe: data is short, __this_module is '%s'", data)
-			}
-
-			data = data[24:]
-			i := 0
-			for ; data[i] != 0x00; i++ {
-			}
-			return string(data[:i]), nil
-		}
-	}
-
-	return "", fmt.Errorf("No name found. Is this a .ko or just an ELF?")
 }
