@@ -21,3 +21,14 @@ func TestResolve(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestNotFound(t *testing.T) {
+	_, err := modprobe.ResolveName("not-found")
+	if err == nil {
+		t.Fail()
+	}
+
+	if !strings.Contains(err.Error(), "not-found") {
+		t.Fail()
+	}
+}

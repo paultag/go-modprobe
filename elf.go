@@ -52,7 +52,7 @@ func ResolveName(name string) (string, error) {
 
 	fsPath := paths[name]
 	if !strings.HasPrefix(fsPath, moduleRoot) {
-		return "", fmt.Errorf("Module isn't in the module directory")
+		return "", fmt.Errorf("Module '%s' isn't in the module directory", name)
 	}
 
 	return fsPath, nil
