@@ -2,14 +2,18 @@ package modprobe
 
 import (
 	"bytes"
+	"compress/gzip"
+	"debug/elf"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"debug/elf"
-
+	"github.com/klauspost/compress/zstd"
+	"github.com/pierrec/lz4"
+	"github.com/xi2/xz"
 	"golang.org/x/sys/unix"
 )
 
@@ -76,11 +80,22 @@ func elfMap(root string) (map[string]string, error) {
 			if !info.Mode().IsRegular() {
 				return nil
 			}
+
+			// switch to regex probably idk
+			if !strings.Contains(path, ".ko") {
+				return nil
+			}
+
+			if filepath.Base(path)[0] == '.' {
+				return nil
+			}
+
 			fd, err := os.Open(path)
 			if err != nil {
 				return err
 			}
 			defer fd.Close()
+
 			name, err := Name(fd)
 			if err != nil {
 				/* For now, let's just ignore that and avoid adding to it */
@@ -99,7 +114,32 @@ func elfMap(root string) (map[string]string, error) {
 }
 
 func ModInfo(file *os.File) (map[string]string, error) {
-	f, err := elf.NewFile(file)
+	ext := filepath.Ext(file.Name())
+	var r io.Reader
+	var err error
+
+	switch ext {
+	case ".ko":
+		r = file
+	case ".zst":
+		r, err = zstd.NewReader(file)
+	case ".xz":
+		r, err = xz.NewReader(file, 0)
+	case ".lz4":
+		r = lz4.NewReader(file)
+	case ".gz":
+		r, err = gzip.NewReader(file)
+
+	default:
+		err = fmt.Errorf("unknown module compression format: %s", ext)
+	}
+
+	content, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := elf.NewFile(bytes.NewReader(content))
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +163,19 @@ func ModInfo(file *os.File) (map[string]string, error) {
 	}
 
 	return attrs, nil
+}
+
+func unzstd(w io.Writer, r io.Reader) error {
+	zstdReader, err := zstd.NewReader(r)
+	if err != nil {
+		return fmt.Errorf("failed to create new reader: %v", err)
+	}
+	defer zstdReader.Close()
+
+	if _, err := io.Copy(w, zstdReader); err != nil {
+		return fmt.Errorf("failed writing decompressed bytes to writer: %v", err)
+	}
+	return nil
 }
 
 // Name will, given a file descriptor to a Kernel Module (.ko file), parse the
