@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/klauspost/compress/zstd"
@@ -74,19 +76,16 @@ func generateMap() (map[string]string, error) {
 func elfMap(root string) (map[string]string, error) {
 	ret := map[string]string{}
 
-	err := filepath.Walk(
+	r := regexp.MustCompile(`\.ko`)
+
+	err := filepath.WalkDir(
 		root,
-		func(path string, info os.FileInfo, err error) error {
-			if !info.Mode().IsRegular() {
+		func(path string, info fs.DirEntry, err error) error {
+			if info.IsDir() {
 				return nil
 			}
 
-			// switch to regex probably idk
-			if !strings.Contains(path, ".ko") {
-				return nil
-			}
-
-			if filepath.Base(path)[0] == '.' {
+			if !r.Match([]byte(path)) {
 				return nil
 			}
 
@@ -163,19 +162,6 @@ func ModInfo(file *os.File) (map[string]string, error) {
 	}
 
 	return attrs, nil
-}
-
-func unzstd(w io.Writer, r io.Reader) error {
-	zstdReader, err := zstd.NewReader(r)
-	if err != nil {
-		return fmt.Errorf("failed to create new reader: %v", err)
-	}
-	defer zstdReader.Close()
-
-	if _, err := io.Copy(w, zstdReader); err != nil {
-		return fmt.Errorf("failed writing decompressed bytes to writer: %v", err)
-	}
-	return nil
 }
 
 // Name will, given a file descriptor to a Kernel Module (.ko file), parse the
