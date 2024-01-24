@@ -2,14 +2,20 @@ package modprobe
 
 import (
 	"bytes"
+	"compress/gzip"
+	"debug/elf"
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
-	"debug/elf"
-
+	"github.com/klauspost/compress/zstd"
+	"github.com/pierrec/lz4"
+	"github.com/xi2/xz"
 	"golang.org/x/sys/unix"
 )
 
@@ -52,7 +58,7 @@ func ResolveName(name string) (string, error) {
 
 	fsPath := paths[name]
 	if !strings.HasPrefix(fsPath, moduleRoot) {
-		return "", fmt.Errorf("Module isn't in the module directory")
+		return "", fmt.Errorf("Module isn't in the module directory: %v", name)
 	}
 
 	return fsPath, nil
@@ -70,17 +76,25 @@ func generateMap() (map[string]string, error) {
 func elfMap(root string) (map[string]string, error) {
 	ret := map[string]string{}
 
-	err := filepath.Walk(
+	r := regexp.MustCompile(`\.ko`)
+
+	err := filepath.WalkDir(
 		root,
-		func(path string, info os.FileInfo, err error) error {
-			if !info.Mode().IsRegular() {
+		func(path string, info fs.DirEntry, err error) error {
+			if info.IsDir() {
 				return nil
 			}
+
+			if !r.Match([]byte(path)) {
+				return nil
+			}
+
 			fd, err := os.Open(path)
 			if err != nil {
 				return err
 			}
 			defer fd.Close()
+
 			name, err := Name(fd)
 			if err != nil {
 				/* For now, let's just ignore that and avoid adding to it */
@@ -99,7 +113,32 @@ func elfMap(root string) (map[string]string, error) {
 }
 
 func ModInfo(file *os.File) (map[string]string, error) {
-	f, err := elf.NewFile(file)
+	ext := filepath.Ext(file.Name())
+	var r io.Reader
+	var err error
+
+	switch ext {
+	case ".ko":
+		r = file
+	case ".zst":
+		r, err = zstd.NewReader(file)
+	case ".xz":
+		r, err = xz.NewReader(file, 0)
+	case ".lz4":
+		r = lz4.NewReader(file)
+	case ".gz":
+		r, err = gzip.NewReader(file)
+
+	default:
+		err = fmt.Errorf("Modinfo error with file %v: unknown module format: %s", file.Name(), ext)
+	}
+
+	content, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := elf.NewFile(bytes.NewReader(content))
 	if err != nil {
 		return nil, err
 	}
