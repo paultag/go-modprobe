@@ -15,6 +15,6 @@ implications this has on processes that use this library.
 
 ## Setting the capability on a binary using this package
 
-```
+```sh
 $ sudo setcap cap_sys_module+ep /path/to/binary
 ```
