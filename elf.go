@@ -130,7 +130,7 @@ func ModInfo(file *os.File) (map[string]string, error) {
 		r, err = gzip.NewReader(file)
 
 	default:
-		err = fmt.Errorf("unknown module compression format: %s", ext)
+		err = fmt.Errorf("Modinfo error with file %v: unknown module format: %s", file.Name(), ext)
 	}
 
 	content, err := io.ReadAll(r)
