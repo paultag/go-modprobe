@@ -51,6 +51,34 @@ func modulePath(path string) string {
 // ResolveName will, given a module name (such as `g_ether`) return an absolute
 // path to the .ko that provides that module.
 func ResolveName(name string) (string, error) {
+	// Optimistically check via filename first.
+	var res string
+	err := filepath.WalkDir(
+		moduleRoot,
+		func(path string, info fs.DirEntry, err error) error {
+			if strings.HasPrefix(filepath.Base(path), filepath.Join(name, ".ko")) {
+				res = path
+				return filepath.SkipAll
+			}
+			return nil
+		})
+	if err == nil && res != "" {
+		fd, err := os.Open(res)
+		if err != nil {
+			return "", err
+		}
+		defer fd.Close()
+
+		elfName, err := Name(fd)
+		if err != nil {
+			return "", err
+		}
+		if elfName == name {
+			return res, nil
+		}
+	}
+
+	// Fallback to full file search if no match is found.
 	paths, err := generateMap()
 	if err != nil {
 		return "", err
@@ -113,27 +141,7 @@ func elfMap(root string) (map[string]string, error) {
 }
 
 func ModInfo(file *os.File) (map[string]string, error) {
-	ext := filepath.Ext(file.Name())
-	var r io.Reader
-	var err error
-
-	switch ext {
-	case ".ko":
-		r = file
-	case ".zst":
-		r, err = zstd.NewReader(file)
-	case ".xz":
-		r, err = xz.NewReader(file, 0)
-	case ".lz4":
-		r = lz4.NewReader(file)
-	case ".gz":
-		r, err = gzip.NewReader(file)
-
-	default:
-		err = fmt.Errorf("Modinfo error with file %v: unknown module format: %s", file.Name(), ext)
-	}
-
-	content, err := io.ReadAll(r)
+	content, err := readModuleFile(file)
 	if err != nil {
 		return nil, err
 	}
@@ -178,4 +186,32 @@ func Name(file *os.File) (string, error) {
 	} else {
 		return name, nil
 	}
+}
+
+// readModuleFile returns the contents of the given file descriptor, extracting
+// it if necessary.
+func readModuleFile(file *os.File) ([]byte, error) {
+	ext := filepath.Ext(file.Name())
+	var r io.Reader
+	var err error
+
+	switch ext {
+	case ".ko":
+		r = file
+	case ".zst":
+		r, err = zstd.NewReader(file)
+	case ".xz":
+		r, err = xz.NewReader(file, 0)
+	case ".lz4":
+		r = lz4.NewReader(file)
+	case ".gz":
+		r, err = gzip.NewReader(file)
+	default:
+		err = fmt.Errorf("unknown module format: %s", ext)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return io.ReadAll(r)
 }
