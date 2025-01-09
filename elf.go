@@ -56,7 +56,7 @@ func ResolveName(name string) (string, error) {
 	err := filepath.WalkDir(
 		moduleRoot,
 		func(path string, info fs.DirEntry, err error) error {
-			if strings.HasPrefix(filepath.Base(path), filepath.Join(name, ".ko")) {
+			if strings.HasPrefix(filepath.Base(path), name+".ko") {
 				res = path
 				return filepath.SkipAll
 			}
