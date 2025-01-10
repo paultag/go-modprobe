@@ -1,0 +1,5 @@
+*
+!.gitignore
+!Makefile
+!test.c
+!test.ko.xz
