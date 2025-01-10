@@ -24,6 +24,9 @@ var (
 	// it's because getModuleRoot has failed to get the uname of the running
 	// kernel (likely a non-POSIX system, but maybe a broken kernel?)
 	moduleRoot = getModuleRoot()
+
+	// koFileExtRegexp is used to match kernel extension file names.
+	koFileExt = regexp.MustCompile(`\.ko`)
 )
 
 // Get the module root (/lib/modules/$(uname -r)/)
@@ -65,7 +68,7 @@ func ResolveName(name string) (string, error) {
 	if err == nil && res != "" {
 		fd, err := os.Open(res)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to open %s: %w", res, err)
 		}
 		defer fd.Close()
 
@@ -104,16 +107,10 @@ func generateMap() (map[string]string, error) {
 func elfMap(root string) (map[string]string, error) {
 	ret := map[string]string{}
 
-	r := regexp.MustCompile(`\.ko`)
-
 	err := filepath.WalkDir(
 		root,
 		func(path string, info fs.DirEntry, err error) error {
-			if info.IsDir() {
-				return nil
-			}
-
-			if !r.Match([]byte(path)) {
+			if !koFileExt.MatchString(path) {
 				return nil
 			}
 
@@ -210,8 +207,12 @@ func readModuleFile(file *os.File) ([]byte, error) {
 		err = fmt.Errorf("unknown module format: %s", ext)
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to extract module %s: %w", file.Name(), err)
 	}
 
-	return io.ReadAll(r)
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read module %s: %w", file.Name(), err)
+	}
+	return b, nil
 }

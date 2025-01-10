@@ -26,8 +26,8 @@ func Init(file *os.File, params string) error {
 // syscall. The `flags` parameter is a bit mask value created by ORing together
 // zero or more of the following flags:
 //
-//	MODULE_INIT_IGNORE_MODVERSIONS - Ignore symbol version hashes
-//	MODULE_INIT_IGNORE_VERMAGIC - Ignore kernel version magic.
+// MODULE_INIT_IGNORE_MODVERSIONS - Ignore symbol version hashes
+// MODULE_INIT_IGNORE_VERMAGIC - Ignore kernel version magic.
 //
 // Both flags are defined in the golang.org/x/sys/unix package.
 func InitWithFlags(file *os.File, params string, flags int) error {
