@@ -15,15 +15,19 @@ import (
 // Any arguments to the module may be passed through `params`, such as
 // `file=/root/data/backing_file`.
 func Init(file *os.File, params string) error {
-	return unix.FinitModule(int(file.Fd()), params, 0)
+	content, err := readModuleFile(file)
+	if err != nil {
+		return err
+	}
+	return unix.InitModule(content, params)
 }
 
 // InitWithFlags will preform an Init, but allow the passing of flags to the
 // syscall. The `flags` parameter is a bit mask value created by ORing together
 // zero or more of the following flags:
 //
-//   MODULE_INIT_IGNORE_MODVERSIONS - Ignore symbol version hashes
-//   MODULE_INIT_IGNORE_VERMAGIC - Ignore kernel version magic.
+// MODULE_INIT_IGNORE_MODVERSIONS - Ignore symbol version hashes
+// MODULE_INIT_IGNORE_VERMAGIC - Ignore kernel version magic.
 //
 // Both flags are defined in the golang.org/x/sys/unix package.
 func InitWithFlags(file *os.File, params string, flags int) error {

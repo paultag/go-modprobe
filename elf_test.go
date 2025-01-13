@@ -1,14 +1,14 @@
-package modprobe_test
+package modprobe
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
-
-	"pault.ag/go/modprobe"
 )
 
 func TestResolve(t *testing.T) {
-	path, err := modprobe.ResolveName("snd")
+	path, err := ResolveName("snd")
 	if err != nil {
 		t.Errorf("%s", err)
 	}
@@ -17,13 +17,35 @@ func TestResolve(t *testing.T) {
 		t.Fail()
 	}
 
-	if !strings.Contains(path, "/usr/modules") {
-		t.Fail()
+	_, err = os.Stat(path)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+}
+
+func TestResolveCompressed(t *testing.T) {
+	moduleRoot = filepath.Join("testing", "test_kernel_module")
+	t.Cleanup(func() {
+		moduleRoot = getModuleRoot()
+	})
+
+	path, err := ResolveName("test")
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	if !strings.Contains(path, "test") {
+		t.Fatalf("expected response path to contain 'test', got %s", path)
+	}
+
+	_, err = os.Stat(path)
+	if err != nil {
+		t.Fatalf("%s", err)
 	}
 }
 
 func TestNotFound(t *testing.T) {
-	_, err := modprobe.ResolveName("not-found")
+	_, err := ResolveName("not-found")
 	if err == nil {
 		t.Fail()
 	}

@@ -2,14 +2,20 @@ package modprobe
 
 import (
 	"bytes"
+	"compress/gzip"
+	"debug/elf"
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
-	"debug/elf"
-
+	"github.com/klauspost/compress/zstd"
+	"github.com/pierrec/lz4"
+	"github.com/xi2/xz"
 	"golang.org/x/sys/unix"
 )
 
@@ -18,6 +24,9 @@ var (
 	// it's because getModuleRoot has failed to get the uname of the running
 	// kernel (likely a non-POSIX system, but maybe a broken kernel?)
 	moduleRoot = getModuleRoot()
+
+	// koFileExtRegexp is used to match kernel extension file names.
+	koFileExt = regexp.MustCompile(`\.ko`)
 )
 
 // Get the module root (/lib/modules/$(uname -r)/)
@@ -45,6 +54,34 @@ func modulePath(path string) string {
 // ResolveName will, given a module name (such as `g_ether`) return an absolute
 // path to the .ko that provides that module.
 func ResolveName(name string) (string, error) {
+	// Optimistically check via filename first.
+	var res string
+	err := filepath.WalkDir(
+		moduleRoot,
+		func(path string, info fs.DirEntry, err error) error {
+			if strings.HasPrefix(filepath.Base(path), name+".ko") {
+				res = path
+				return filepath.SkipAll
+			}
+			return nil
+		})
+	if err == nil && res != "" {
+		fd, err := os.Open(res)
+		if err != nil {
+			return "", fmt.Errorf("failed to open %s: %w", res, err)
+		}
+		defer fd.Close()
+
+		elfName, err := Name(fd)
+		if err != nil {
+			return "", err
+		}
+		if elfName == name {
+			return res, nil
+		}
+	}
+
+	// Fallback to full file search if no match is found.
 	paths, err := generateMap()
 	if err != nil {
 		return "", err
@@ -70,17 +107,19 @@ func generateMap() (map[string]string, error) {
 func elfMap(root string) (map[string]string, error) {
 	ret := map[string]string{}
 
-	err := filepath.Walk(
+	err := filepath.WalkDir(
 		root,
-		func(path string, info os.FileInfo, err error) error {
-			if !info.Mode().IsRegular() {
+		func(path string, info fs.DirEntry, err error) error {
+			if !koFileExt.MatchString(path) {
 				return nil
 			}
+
 			fd, err := os.Open(path)
 			if err != nil {
 				return err
 			}
 			defer fd.Close()
+
 			name, err := Name(fd)
 			if err != nil {
 				/* For now, let's just ignore that and avoid adding to it */
@@ -99,7 +138,12 @@ func elfMap(root string) (map[string]string, error) {
 }
 
 func ModInfo(file *os.File) (map[string]string, error) {
-	f, err := elf.NewFile(file)
+	content, err := readModuleFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := elf.NewFile(bytes.NewReader(content))
 	if err != nil {
 		return nil, err
 	}
@@ -139,4 +183,36 @@ func Name(file *os.File) (string, error) {
 	} else {
 		return name, nil
 	}
+}
+
+// readModuleFile returns the contents of the given file descriptor, extracting
+// it if necessary.
+func readModuleFile(file *os.File) ([]byte, error) {
+	ext := filepath.Ext(file.Name())
+	var r io.Reader
+	var err error
+
+	switch ext {
+	case ".ko":
+		r = file
+	case ".zst":
+		r, err = zstd.NewReader(file)
+	case ".xz":
+		r, err = xz.NewReader(file, 0)
+	case ".lz4":
+		r = lz4.NewReader(file)
+	case ".gz":
+		r, err = gzip.NewReader(file)
+	default:
+		err = fmt.Errorf("unknown module format: %s", ext)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract module %s: %w", file.Name(), err)
+	}
+
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read module %s: %w", file.Name(), err)
+	}
+	return b, nil
 }
